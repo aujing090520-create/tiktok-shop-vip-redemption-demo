@@ -94,11 +94,6 @@ const rules = [
     screen: "refund-unredeemed",
   },
   {
-    id: "FR-005/5",
-    summary: "退款成功后，已兑换码按充值 ID 回收权益",
-    screen: "refund-redeemed",
-  },
-  {
     id: "FR-005/6",
     summary: "售后期结束或退款完成后，订单更新为 Completed",
     screen: "completed",
@@ -120,7 +115,7 @@ function qrMarkup() {
 
 function codeStatusClass() {
   if (state.codeStatus === "已使用") return "success";
-  if (state.codeStatus.includes("失效") || state.codeStatus.includes("回收")) return "danger";
+  if (state.codeStatus.includes("失效")) return "danger";
   return "";
 }
 
@@ -198,16 +193,13 @@ function mailScreen() {
 }
 
 function redeemScreen() {
-  const disabled = state.codeStatus !== "可用";
   return `
     ${appNavigation("兑换码")}
     <div class="redeem-screen">
       <section class="redeem-form">
         ${marker("2", "FR-003/1", "marker-code")}
         <input class="code-input" value="${state.code}" aria-label="兑换码" readonly>
-        <button class="primary-button" data-action="confirm" ${disabled ? "disabled" : ""}>
-          ${disabled ? state.codeStatus : "确认兑换"}
-        </button>
+        <button class="primary-button" data-action="confirm">确认兑换</button>
         ${
           state.rechargeFailed
             ? `
@@ -292,13 +284,21 @@ function downloadScreen() {
 
 function modal() {
   if (state.screen !== "confirm") return "";
+  const invalidCode = state.codeStatus === "已失效";
+  const title = invalidCode ? "兑换码已失效" : state.plan;
+  const description = invalidCode
+    ? "该兑换码已失效，无法兑换。"
+    : "确认使用此兑换码兑换以上 VIP 权益？";
+  const action = invalidCode ? "我知道了" : "同意并兑换";
+  const actionName = invalidCode ? "dismiss-modal" : "redeem";
+
   return `
     <div class="modal-scrim">
-      <section class="confirm-modal" role="dialog" aria-modal="true" aria-label="确认兑换">
+      <section class="confirm-modal" role="dialog" aria-modal="true" aria-label="${title}">
         ${marker("3", "FR-003/2", "marker-confirm")}
-        <h3>${state.plan}</h3>
-        <p>确认使用此兑换码兑换以上 VIP 权益？</p>
-        <button class="primary-button" data-action="redeem">同意并兑换</button>
+        <h3>${title}</h3>
+        <p>${description}</p>
+        <button class="primary-button" data-action="${actionName}">${action}</button>
       </section>
     </div>
   `;
@@ -362,7 +362,7 @@ function operationsPanel() {
           <dt>VIP 商品</dt><dd>${state.plan}</dd>
           <dt>兑换码</dt><dd>${state.code}</dd>
           <dt>兑换码状态</dt><dd><span class="status-chip ${codeStatusClass()}">${state.codeStatus}</span></dd>
-          <dt>VIP 充值 ID</dt><dd>${state.codeStatus === "已使用" || state.codeStatus.includes("回收") ? state.rechargeId : "未生成"}</dd>
+          <dt>VIP 充值 ID</dt><dd>${state.codeStatus === "已使用" ? state.rechargeId : "未生成"}</dd>
           <dt>TikTok 履约</dt><dd><span class="status-chip success">${state.deliveryStatus}</span></dd>
           <dt>平台订单</dt><dd><span class="status-chip ${state.orderStatus === "已完成" ? "success" : ""}">${state.orderStatus}</span></dd>
           <dt>售后处理</dt><dd>${state.afterSalesStatus}</dd>
@@ -404,7 +404,7 @@ function render() {
         <div>
           <p class="eyebrow">TIKTOK SHOP / HELLOTALK VIP</p>
           <h1>VIP 商品卡售卖与核销</h1>
-          <p>中文演示：邮件交付、App 内兑换、平台售后、退款回收与订单完成。</p>
+          <p>中文演示：邮件交付、App 内兑换、平台售后、退款失效与订单完成。</p>
         </div>
         <div class="review-switch">
           <input id="review-toggle" type="checkbox" ${state.review ? "checked" : ""}>
@@ -431,10 +431,6 @@ function setToast(message) {
 }
 
 function redeem() {
-  if (state.codeStatus !== "可用") {
-    setToast("该兑换码当前不可使用");
-    return;
-  }
   state.screen = "success";
   state.codeStatus = "已使用";
   state.rechargeFailed = false;
@@ -486,13 +482,6 @@ function selectRule(ruleId) {
     state.afterSalesStatus = "退款成功";
     state.orderStatus = "已完成";
     state.logs.unshift("TikTok Shop 退款成功：未兑换码已立即失效");
-  }
-  if (rule.screen === "refund-redeemed") {
-    state.codeStatus = "权益已回收";
-    state.screen = "redeem";
-    state.afterSalesStatus = "退款成功";
-    state.orderStatus = "已完成";
-    state.logs.unshift(`TikTok Shop 退款成功：已按充值 ID ${state.rechargeId} 回收 VIP 权益`);
   }
   if (rule.screen === "after-sales-request") {
     state.codeStatus = "可用";
@@ -555,7 +544,11 @@ root.addEventListener("click", (event) => {
   if (action === "confirm") {
     state.screen = "confirm";
     state.rechargeFailed = false;
-    state.activeRule = "FR-003/2";
+    state.activeRule = state.codeStatus === "已失效" ? "FR-005/4" : "FR-003/2";
+    render();
+  }
+  if (action === "dismiss-modal") {
+    state.screen = "redeem";
     render();
   }
   if (action === "redeem") redeem();
