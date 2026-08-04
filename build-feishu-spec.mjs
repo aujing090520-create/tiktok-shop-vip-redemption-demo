@@ -80,6 +80,16 @@ const spec = {
             "https://hellotalk.feishu.cn/wiki/RHeVwaisZiEe2nkyH9gcVLpdnKe",
             "商业化",
           ],
+          [
+            "在线 Demo（Vercel）",
+            "https://tiktok-shop-vip-redemption-demo.vercel.app",
+            "林凡",
+          ],
+          [
+            "Demo 源码（GitHub）",
+            "https://github.com/aujing090520-create/tiktok-shop-vip-redemption-demo",
+            "林凡",
+          ],
         ],
       },
     },
